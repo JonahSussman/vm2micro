@@ -212,7 +212,7 @@ The scanner reads this before analysis and incorporates it. The interview step c
 
 | Tool | Description |
 |---|---|
-| `connect` | Connect to target — auto-detects type from input. Returns detected OS info. |
+| `connect` | Connect to target — auto-detects type from input (file extension → image, directory → local, `ssh://` → SSH). Accepts optional `user`, `key_path`, `password` for SSH. Returns detected OS info. |
 | `disconnect` | Unmount/disconnect, clean up |
 
 ### Analysis tools (all operate through VirtualFS)
@@ -356,7 +356,7 @@ Sequential — each depends on the previous: vm-scanner → dependency-analyzer 
 
 ### Storage
 
-Scan results at `viking://resources/scans/{vm-id}/`:
+Scan results at `viking://resources/scans/{vm-id}/` (where `vm-id` is derived from the source — hostname for SSH, filename for disk images, directory name for local paths):
 - **L0** (~100 tokens): "RHEL 8.9, LAMP stack, 3 services detected"
 - **L1** (~2k tokens): Service list with versions, ports, key config paths
 - **L2** (full): Complete fingerprint data, config contents, raw evidence
@@ -492,6 +492,7 @@ requires-python = ">=3.11"
 dependencies = [
     "mcp>=1.18",
     "asyncssh>=2.17.0",
+    "aiofiles>=24.1",
     "pyyaml>=6.0",
     "click>=8.0",
 ]
