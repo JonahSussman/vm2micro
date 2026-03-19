@@ -1,0 +1,9 @@
+[Unit]
+Description=The Apache HTTP Server
+
+[Service]
+ExecStart=/usr/sbin/apache2
+Type=forking
+
+[Install]
+WantedBy=multi-user.target

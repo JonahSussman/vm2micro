@@ -1,0 +1,9 @@
+[Unit]
+Description=The nginx HTTP and reverse proxy server
+
+[Service]
+ExecStart=/usr/sbin/nginx
+Type=forking
+
+[Install]
+WantedBy=multi-user.target

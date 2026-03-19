@@ -1,0 +1,9 @@
+[Unit]
+Description=PostgreSQL RDBMS
+
+[Service]
+ExecStart=/usr/lib/postgresql/14/bin/postgres
+Type=notify
+
+[Install]
+WantedBy=multi-user.target

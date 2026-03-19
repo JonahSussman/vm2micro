@@ -1,0 +1,9 @@
+[Unit]
+Description=MariaDB database server
+
+[Service]
+ExecStart=/usr/libexec/mysqld
+Type=notify
+
+[Install]
+WantedBy=multi-user.target
