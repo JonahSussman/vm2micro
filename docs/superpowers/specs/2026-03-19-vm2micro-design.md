@@ -416,7 +416,7 @@ output/
 │       ├── tasks.md
 │       └── notes.md
 ├── interview-summary.md
-├── scan-report.md
+├── analysis-report.md              # Comprehensive human-readable report (see below)
 ├── dependency-graph.json
 ├── decomposition-plan.md
 ├── validation-report.md
@@ -442,6 +442,27 @@ output/
             ├── service.yaml
             └── pvc.yaml
 ```
+
+### Analysis Report (`output/analysis-report.md`)
+
+A comprehensive, human-readable report that stands on its own as a deliverable. Some users may only need this — the analysis itself is valuable even without manifest generation. The report is built incrementally as each agent completes its work:
+
+**Contents:**
+
+1. **Executive Summary** — One-paragraph overview: what this VM does, what was found, recommended containerization approach.
+2. **System Profile** — OS, distro, kernel, architecture, disk layout.
+3. **Discovered Services** — Each service with:
+   - Name, version, category
+   - How it was detected (evidence)
+   - Confidence level (high/medium/low)
+   - Config file locations and key settings
+   - Ports, data directories
+4. **Stack Assessment** — Matched stack pattern (if any), or description of the custom stack.
+5. **Dependency Map** — Human-readable description of how services relate (not just the JSON graph). "The webapp connects to PostgreSQL via socket at /var/run/postgresql. Redis is used as a session cache on port 6379."
+6. **Containerization Recommendations** — Proposed container groupings with rationale, base images, migration order, risks and caveats.
+7. **Warnings & Considerations** — Poor containerization candidates, external dependencies, data migration concerns, security findings.
+
+Each section is written by the agent responsible for that phase and appended to the report. The final document reads as a coherent narrative, not a collection of agent outputs.
 
 ## 11. Project Structure
 
