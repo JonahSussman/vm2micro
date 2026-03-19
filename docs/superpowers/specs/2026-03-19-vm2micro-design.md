@@ -76,10 +76,14 @@ Six methods. No write operations — read-only by design.
 |---|---|---|
 | `GuestFSBackend` | Path to disk image (`.qcow2`, `.vmdk`, `.raw`, `.vdi`, `.vhdx`) | Shells out to `guestmount --ro`, delegates to `LocalPathBackend` for reads |
 | `LocalPathBackend` | Path to a directory (mounted disk, extracted rootfs) | Direct `aiofiles`/`pathlib` operations |
-| `SSHBackend` | `ssh://user@host` | `asyncssh` — translates each method to remote commands |
+| `SSHBackend` | `ssh://user@host` | `asyncssh` — implements VirtualFS methods via remote commands |
 | `CloudDiskBackend` | Cloud resource identifier | Stubbed — raises `NotImplementedError` with future support message |
 
 `GuestFSBackend` is thin — handles mount/unmount lifecycle, then wraps `LocalPathBackend` for actual file operations.
+
+**SSH is a superset of VirtualFS.** The `SSHBackend` implements the `VirtualFS` protocol (so all analysis tools work uniformly), but SSH connections also expose `ssh_exec` for running arbitrary non-destructive commands (`which psql`, `java -version`, `ss -tlnp`, etc.) that have no filesystem equivalent. This means:
+- **Disk image / local path analysis:** VirtualFS-only, pattern-based detection from filesystem evidence
+- **SSH analysis:** VirtualFS for filesystem reads + `ssh_exec` for live interrogation — richer results
 
 ### Connection flow
 
@@ -214,6 +218,7 @@ The scanner reads this before analysis and incorporates it. The interview step c
 |---|---|
 | `connect` | Connect to target — auto-detects type from input (file extension → image, directory → local, `ssh://` → SSH). Accepts optional `user`, `key_path`, `password` for SSH. Returns detected OS info. |
 | `disconnect` | Unmount/disconnect, clean up |
+| `ssh_exec` | Run a non-destructive command on the connected VM. Only available when connected via SSH. See SSH Command Safety below. |
 
 ### Analysis tools (all operate through VirtualFS)
 
@@ -231,6 +236,22 @@ The scanner reads this before analysis and incorporates it. The interview step c
 | `list_cron_jobs` | Parse crontabs for all users |
 | `list_open_ports` | Parse configs for port bindings (static) or `ss` output (SSH) |
 | `get_disk_usage` | Directory sizes |
+
+### SSH Command Safety
+
+`ssh_exec` enforces safety at the MCP server level:
+
+1. **Parse with `bashlex`.** The command string is parsed into an AST using `bashlex`. This catches shell composition that naive string scanning would miss.
+2. **Single simple command only.** The AST must contain exactly one `command` node. Reject anything with multiple commands (`;`, `&&`, `||`), pipes (`|`), subshells (`$()`, backticks), redirects (`>`, `<`), or variable expansion (`$VAR`). The agent should use only simple `command arg1 arg2` forms — no shell features.
+3. **Denylist every token.** Every token in the command is checked against the denylist — not just the first. This catches wrapper patterns like `env rm`, `nice dd`, `xargs rm`. Denylisted commands: `rm`, `rmdir`, `dd`, `mkfs`, `fdisk`, `parted`, `shutdown`, `reboot`, `halt`, `poweroff`, `kill`, `killall`, `pkill`, `chmod`, `chown`, `chgrp`, `mv`, `cp`, `tee`, `truncate`, `shred`, `wipefs`, `mount`, `umount`, `useradd`, `userdel`, `usermod`, `passwd`, `sudo`, `su`.
+4. **Block interpreters and command wrappers.** Deny commands that can execute arbitrary code: `bash`, `sh`, `zsh`, `dash`, `csh`, `fish`, `python`, `python3`, `perl`, `ruby`, `node`, `php`, `lua`, `awk`, `sed`, `xargs`, `exec`, `eval`, `nohup`, `strace`, `ltrace`, `gdb`. These can trivially bypass any other check (e.g., `python3 -c "import os; os.system('rm -rf /')"`).
+5. **Block dangerous flags on allowed commands.** Even allowed commands can be destructive with certain flags: `find ... -exec`, `find ... -delete`, `systemctl stop/start/restart/enable/disable`, `service ... stop/start/restart`.
+6. **Block path-based evasion.** Reject commands containing `/` in the command name (e.g., `/bin/rm`, `./malicious-script`). Only bare command names are allowed — the remote system's PATH determines resolution.
+7. **Clear error messages.** On rejection, return exactly what was blocked and why, so the agent can reformulate.
+
+**Shell compatibility note:** The target VM may run any shell (bash, zsh, sh, dash). Agent prompts instruct agents to use only POSIX-compatible simple commands — no bash-specific features, no fancy syntax. `bashlex` is used server-side for parsing safety, not as a guarantee about the remote shell.
+
+This is defense-in-depth — Claude Code's own permission system is the first gate, the MCP server's parsing is the second.
 
 ### Viking tools
 
@@ -493,6 +514,7 @@ dependencies = [
     "mcp>=1.18",
     "asyncssh>=2.17.0",
     "aiofiles>=24.1",
+    "bashlex>=0.18",
     "pyyaml>=6.0",
     "click>=8.0",
 ]
