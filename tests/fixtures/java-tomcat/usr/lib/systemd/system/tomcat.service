@@ -1,0 +1,6 @@
+[Unit]
+Description=Apache Tomcat
+[Service]
+ExecStart=/opt/tomcat/bin/catalina.sh run
+[Install]
+WantedBy=multi-user.target

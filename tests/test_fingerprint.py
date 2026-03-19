@@ -66,3 +66,22 @@ async def test_fingerprint_has_config_paths() -> None:
     results = await scan_services(backend, distro)
     apache = next(fp for fp in results if fp.name == "apache")
     assert len(apache.config_paths) > 0
+
+
+FIXTURE_TOMCAT = Path(__file__).parent / "fixtures" / "java-tomcat"
+
+
+async def test_scan_finds_tomcat() -> None:
+    backend = LocalPathBackend(str(FIXTURE_TOMCAT))
+    distro = DistroInfo(name="RHEL", family=DistroFamily.RHEL, version="9.3", pretty_name="RHEL 9.3")
+    results = await scan_services(backend, distro)
+    names = [fp.name for fp in results]
+    assert "tomcat" in names
+
+
+async def test_scan_finds_postgres_on_tomcat_fixture() -> None:
+    backend = LocalPathBackend(str(FIXTURE_TOMCAT))
+    distro = DistroInfo(name="RHEL", family=DistroFamily.RHEL, version="9.3", pretty_name="RHEL 9.3")
+    results = await scan_services(backend, distro)
+    names = [fp.name for fp in results]
+    assert "postgresql" in names

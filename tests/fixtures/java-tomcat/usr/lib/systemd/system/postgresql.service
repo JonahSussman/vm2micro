@@ -1,0 +1,6 @@
+[Unit]
+Description=PostgreSQL
+[Service]
+ExecStart=/usr/lib/postgresql/14/bin/postgres
+[Install]
+WantedBy=multi-user.target

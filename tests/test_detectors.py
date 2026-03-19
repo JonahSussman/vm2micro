@@ -20,3 +20,15 @@ def test_registry_has_databases() -> None:
     names = [d.name for d in detectors]
     assert "postgresql" in names
     assert "mysql" in names
+
+
+def test_registry_has_app_servers() -> None:
+    detectors = get_all_detectors()
+    names = [d.name for d in detectors]
+    assert "tomcat" in names
+
+
+def test_registry_has_queues() -> None:
+    detectors = get_all_detectors()
+    names = [d.name for d in detectors]
+    assert "rabbitmq" in names
