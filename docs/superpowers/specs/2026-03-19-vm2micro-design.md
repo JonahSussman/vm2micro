@@ -68,18 +68,27 @@ class VirtualFS(Protocol):
     async def read_link(self, path: str) -> str
 ```
 
-Six methods. No write operations — read-only by design. The `guestmount --ro` flag ensures read-only access regardless of the guest filesystem type (ext4, XFS, NTFS, etc.). Analysis targets Linux VMs only — Windows VM analysis is out of scope.
+Six methods. No write operations — read-only by design. Analysis targets Linux VMs only — Windows VM analysis is out of scope.
 
 ### Backends
 
 | Backend | Input | Implementation |
 |---|---|---|
-| `GuestFSBackend` | Path to disk image (`.qcow2`, `.vmdk`, `.raw`, `.vdi`, `.vhdx`) | Shells out to `guestmount --ro`, delegates to `LocalPathBackend` for reads |
+| `GuestFSBackend` | Path to disk image (`.qcow2`, `.vmdk`, `.raw`, `.vdi`, `.vhdx`) | Uses `python3-libguestfs` API directly — `guestfs.GuestFS()` with read-only access. Provides VirtualFS methods via `g.cat()`, `g.ls()`, `g.stat()`, etc. Also exposes rich inspection APIs (OS detection, package lists, Augeas config parsing) beyond what VirtualFS alone offers. |
 | `LocalPathBackend` | Path to a directory (mounted disk, extracted rootfs) | Direct `aiofiles`/`pathlib` operations |
 | `SSHBackend` | `ssh://user@host` | `asyncssh` — implements VirtualFS methods via remote commands |
 | `CloudDiskBackend` | Cloud resource identifier | Stubbed — raises `NotImplementedError` with future support message |
 
-`GuestFSBackend` is thin — handles mount/unmount lifecycle, then wraps `LocalPathBackend` for actual file operations.
+`GuestFSBackend` is the richest backend. Beyond implementing VirtualFS, it exposes libguestfs inspection capabilities:
+
+- **`inspect_os()` + `inspect_get_*`** — OS detection (distro, version, architecture) without parsing `/etc/os-release` manually
+- **`inspect_list_applications2()`** — Installed packages enumerated directly from the package database (RPM, dpkg, apk) — no filesystem parsing needed
+- **`inspect_get_mountpoints()`** — Filesystem layout and mount points
+- **Augeas integration (`aug_init`, `aug_get`, `aug_match`)** — Structured parsing of config files (Apache, nginx, MySQL, `/etc/fstab`, etc.) instead of regex-matching raw text
+
+These capabilities are exposed as additional methods on `GuestFSBackend` beyond the `VirtualFS` protocol, similar to how `SSHBackend` exposes `ssh_exec` as a superset.
+
+**System dependency:** `python3-libguestfs` is a system package installed via the OS package manager (`dnf install python3-libguestfs` on RHEL/Fedora, `apt install python3-guestfs` on Debian/Ubuntu). It cannot be pip-installed. The tool checks for it at startup and provides a clear installation message if missing.
 
 **SSH is a superset of VirtualFS.** The `SSHBackend` implements the `VirtualFS` protocol (so all analysis tools work uniformly), but SSH connections also expose `ssh_exec` for running arbitrary non-destructive commands (`which psql`, `java -version`, `ss -tlnp`, etc.) that have no filesystem equivalent. This means:
 - **Disk image / local path analysis:** VirtualFS-only, pattern-based detection from filesystem evidence
@@ -91,9 +100,9 @@ Six methods. No write operations — read-only by design. The `guestmount --ro` 
 User: "analyze /path/to/vm.qcow2"
   → Claude calls connect(target="/path/to/vm.qcow2")
   → MCP server detects file extension → GuestFSBackend
-  → guestmount --ro mounts to temp dir
-  → All analysis tools use VirtualFS
-  → disconnect → guestunmount cleans up
+  → libguestfs opens disk image read-only (no FUSE mount needed)
+  → All analysis tools use VirtualFS + GuestFS inspection APIs
+  → disconnect → guestfs handle closed, cleanup
 
 User: "analyze ssh://admin@10.0.1.5"
   → SSHBackend via asyncssh
@@ -141,7 +150,9 @@ Detection sources (via VirtualFS):
 - `/etc/init.d/` for SysVinit systems
 - Config file contents for port bindings
 
-Cross-distro support: detect distro first via `/etc/os-release`, then use appropriate variant for each detector. Supported families: RHEL/CentOS/Fedora (deepest coverage), Debian/Ubuntu, Alpine, SUSE.
+**GuestFSBackend bonus:** When analyzing disk images, `inspect_list_applications2()` provides the complete package list directly — no need to parse package DB files. `inspect_os()` provides OS detection. Augeas provides structured config parsing. These are used when available and the VirtualFS-based detection serves as the universal fallback (works for all backends).
+
+Cross-distro support: detect distro first via `/etc/os-release` (or `inspect_get_distro()` for GuestFS), then use appropriate variant for each detector. Supported families: RHEL/CentOS/Fedora (deepest coverage), Debian/Ubuntu, Alpine, SUSE.
 
 ### Layer 2 — Stack Pattern Recognition
 
@@ -224,11 +235,12 @@ The scanner reads this before analysis and incorporates it. The interview step c
 
 | Tool | Description |
 |---|---|
-| `detect_os` | Read `/etc/os-release`, kernel info, arch — determines distro family |
+| `detect_os` | Read `/etc/os-release`, kernel info, arch — determines distro family. When GuestFSBackend is active, uses `inspect_os()` / `inspect_get_*` for richer results. |
 | `scan_services` | Run fingerprint library, return structured results |
 | `detect_stack_patterns` | Match fingerprints against known stack templates |
 | `list_systemd_units` | List all systemd units (enabled/running) |
-| `list_packages` | Installed packages (auto-selects RPM/dpkg/apk) |
+| `list_packages` | Installed packages — uses `inspect_list_applications2()` for GuestFS, parses package DB for local paths, `dpkg -l`/`rpm -qa` for SSH |
+| `parse_config` | Parse a config file structurally via Augeas (GuestFS only) — returns key-value pairs. Falls back to raw `read_file` for other backends. |
 | `read_file` | Read any file via VirtualFS |
 | `list_dir` | List directory contents |
 | `glob_files` | Glob pattern search |
@@ -479,7 +491,7 @@ vm2micro/
 │   ├── viking.py                    # OpenViking client wrapper + graceful degradation
 │   ├── virtualfs/
 │   │   ├── __init__.py              # VirtualFS protocol definition
-│   │   ├── guestfs.py              # GuestFSBackend
+│   │   ├── guestfs_backend.py      # GuestFSBackend (libguestfs Python API)
 │   │   ├── local.py                # LocalPathBackend
 │   │   ├── ssh.py                  # SSHBackend
 │   │   └── cloud.py               # CloudDiskBackend (stubbed)
@@ -553,7 +565,13 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 ```
 
-Type checking: `mypy --strict` must pass. `py.typed` marker included. `VirtualFS` defined as `typing.Protocol` for structural typing.
+**System dependency: `python3-libguestfs`** — Required for disk image analysis (the primary use case). Not pip-installable; must be installed via OS package manager:
+- RHEL/Fedora: `dnf install python3-libguestfs`
+- Debian/Ubuntu: `apt install python3-guestfs`
+
+The `import guestfs` is done at runtime in `GuestFSBackend`. If missing, the tool fails with a clear error message directing the user to install it. This is a hard requirement — disk image analysis is the core feature.
+
+Type checking: `mypy --strict` must pass. `py.typed` marker included. `VirtualFS` defined as `typing.Protocol` for structural typing. Note: `guestfs` lacks type stubs — use `type: ignore[import-untyped]` for the import and provide typed wrappers internally.
 
 ## 13. Packaging & Installation
 
@@ -589,7 +607,7 @@ claude                                 # Start Claude Code — MCP tools availab
 4. **Stack pattern matching** — `patterns.py` with initial patterns. Test against fixtures.
 5. **MCP server + analysis tools** — Wire VirtualFS and analysis into FastMCP tools. Verify in Claude Code.
 6. **CLI commands** — `vm2micro init` and `vm2micro install`
-7. **GuestFSBackend** — guestmount wrapper, test with real disk image
+7. **GuestFSBackend** — `python3-libguestfs` API integration: VirtualFS implementation via `g.cat()`/`g.ls()`/etc., plus inspection APIs (`inspect_os`, `inspect_list_applications2`, Augeas). Test with mock guestfs handle + real disk image if available.
 8. **SSHBackend** — asyncssh implementation
 9. **CloudDiskBackend stub** — NotImplementedError with helpful messages
 10. **OpenViking integration** — `viking.py`, `viking_tools.py`, graceful degradation
