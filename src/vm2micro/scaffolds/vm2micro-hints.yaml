@@ -1,7 +1,29 @@
-# Example vm2micro hints file
-description: "Describe your VM"
-stack: ""
-applications: []
-external_dependencies: []
-exclude_from_containerization: []
-target_openshift_version: ""
+# vm2micro hints — optional context to speed up analysis.
+# Fill in what you know; leave blank or remove fields you don't.
+
+# Brief description of what this VM does
+description: "Main web application server"
+
+# Primary stack (e.g., java, python, ruby, php, node)
+stack: "java"
+
+# Known applications on this VM
+applications:
+  - name: "acme-webapp"
+    path: "/opt/acme/"
+    type: "java-war"
+  - name: "worker"
+    path: "/home/deploy/worker/"
+    type: "python"
+
+# External services this VM connects to
+external_dependencies:
+  - "redis.prod.internal:6379"
+  - "api.thirdparty.com"
+
+# Services on this VM that should NOT be containerized
+exclude_from_containerization:
+  - "monitoring-agent"
+
+# Target OpenShift version
+target_openshift_version: "4.14"
