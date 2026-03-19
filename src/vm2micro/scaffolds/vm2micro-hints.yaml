@@ -1,0 +1,7 @@
+# Example vm2micro hints file
+description: "Describe your VM"
+stack: ""
+applications: []
+external_dependencies: []
+exclude_from_containerization: []
+target_openshift_version: ""
