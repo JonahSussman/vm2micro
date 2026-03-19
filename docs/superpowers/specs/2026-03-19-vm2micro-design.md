@@ -8,7 +8,7 @@ vm2micro is a tool that uses AI to analyze a Linux VM (via disk image or SSH), i
 - Static disk image analysis is the primary path; SSH is secondary
 - Human-in-the-loop at every stage via natural conversation
 - Hardcoded detection patterns for common stacks + AI-driven exploration for the rest
-- OpenShift is the primary target platform
+- OpenShift is the primary target platform — vanilla Kubernetes support only if it comes for free; do not spend effort on k8s-specific output or abstractions
 - Superpowers-style orchestration: interview → plan → execute → review per agent
 
 **License:** Apache 2.0
@@ -68,7 +68,7 @@ class VirtualFS(Protocol):
     async def read_link(self, path: str) -> str
 ```
 
-Six methods. No write operations — read-only by design.
+Six methods. No write operations — read-only by design. The `guestmount --ro` flag ensures read-only access regardless of the guest filesystem type (ext4, XFS, NTFS, etc.). Analysis targets Linux VMs only — Windows VM analysis is out of scope.
 
 ### Backends
 
@@ -251,7 +251,7 @@ The scanner reads this before analysis and incorporates it. The interview step c
 
 **Shell compatibility note:** The target VM may run any shell (bash, zsh, sh, dash). Agent prompts instruct agents to use only POSIX-compatible simple commands — no bash-specific features, no fancy syntax. `bashlex` is used server-side for parsing safety, not as a guarantee about the remote shell.
 
-This is defense-in-depth — Claude Code's own permission system is the first gate, the MCP server's parsing is the second.
+This is defense-in-depth — Claude Code's own permission system is the first gate, the MCP server's parsing is the second. The denylist is intentionally over-restrictive for v0.1. It may be loosened in future versions with explicit user-facing documentation about the security trade-offs.
 
 ### Viking tools
 
