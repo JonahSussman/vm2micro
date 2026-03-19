@@ -50,7 +50,7 @@ class ConnectionManager:
 
         if target.startswith("ssh://"):
             # SSH backend
-            from vm2micro.virtualfs.ssh import SSHBackend  # type: ignore[import-not-found]
+            from vm2micro.virtualfs.ssh import SSHBackend
 
             ssh_backend = SSHBackend()
             parsed_user = (
@@ -72,7 +72,7 @@ class ConnectionManager:
             path = Path(target)
             if not path.exists():
                 raise FileNotFoundError(f"Disk image not found: {target}")
-            from vm2micro.virtualfs.guestfs_backend import GuestFSBackend  # type: ignore[import-not-found]
+            from vm2micro.virtualfs.guestfs_backend import GuestFSBackend
 
             guestfs_backend = GuestFSBackend()
             await guestfs_backend.open(target)
