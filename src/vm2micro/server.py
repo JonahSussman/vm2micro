@@ -9,6 +9,7 @@ from mcp.server.fastmcp import FastMCP
 from vm2micro.tools.connection import ConnectionManager
 from vm2micro.tools import analysis as analysis_tools
 from vm2micro.tools import filesystem as fs_tools
+from vm2micro.tools import viking_tools
 from vm2micro.ssh_safety import validate_command, CommandRejectedError
 
 mcp = FastMCP("vm2micro")
@@ -119,6 +120,18 @@ async def list_open_ports() -> list[dict[str, object]]:
 async def get_disk_usage(path: str) -> dict[str, object]:
     """Get disk usage for a directory on the connected filesystem."""
     return await fs_tools.get_disk_usage(_mgr.fs, path)
+
+
+@mcp.tool()
+async def viking_store_scan(vm_id: str, scan_data: dict[str, Any]) -> str:
+    """Store scan results in OpenViking (or local JSON fallback)."""
+    return viking_tools.store_scan(vm_id, scan_data)
+
+
+@mcp.tool()
+async def viking_commit_session() -> str:
+    """Finalize the OpenViking session and store migration record."""
+    return viking_tools.commit_session()
 
 
 def main() -> None:
