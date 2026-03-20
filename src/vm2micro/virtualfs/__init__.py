@@ -1,0 +1,19 @@
+"""VirtualFS protocol and factory."""
+
+from __future__ import annotations
+
+from typing import Protocol, runtime_checkable
+
+from vm2micro.models import DirEntry, FileStat
+
+
+@runtime_checkable
+class VirtualFS(Protocol):
+    """Read-only virtual filesystem interface."""
+
+    async def read_file(self, path: str, max_lines: int | None = None) -> str: ...
+    async def list_dir(self, path: str) -> list[DirEntry]: ...
+    async def exists(self, path: str) -> bool: ...
+    async def glob(self, pattern: str) -> list[str]: ...
+    async def stat(self, path: str) -> FileStat: ...
+    async def read_link(self, path: str) -> str: ...

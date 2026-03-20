@@ -1,0 +1,9 @@
+[Unit]
+Description=The Apache HTTP Server
+
+[Service]
+ExecStart=/usr/sbin/httpd
+Type=notify
+
+[Install]
+WantedBy=multi-user.target
