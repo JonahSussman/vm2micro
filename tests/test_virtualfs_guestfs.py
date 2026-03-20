@@ -162,7 +162,7 @@ async def test_stat(
 ) -> None:
     backend, mock_g, image = backend_with_mock
     mock_g.exists.return_value = True
-    mock_g.stat.return_value = {
+    mock_g.statns.return_value = {
         "st_size": 1024,
         "st_mode": 0o100644,
         "st_uid": 0,

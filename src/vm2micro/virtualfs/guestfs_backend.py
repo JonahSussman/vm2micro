@@ -122,7 +122,7 @@ class GuestFSBackend:
         g = self._require_open()
         if not g.exists(path):
             raise FileNotFoundError(f"No such file: {path}")
-        st = await asyncio.to_thread(g.stat, path)
+        st = await asyncio.to_thread(g.statns, path)
         return FileStat(
             size=st["st_size"],
             mode=st["st_mode"],

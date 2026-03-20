@@ -8,3 +8,11 @@ build/
 *.egg
 .mypy_cache/
 .pytest_cache/
+
+# VM disk images
+*.qcow2
+*.vmdk
+*.raw
+*.vdi
+*.vhd
+*.img

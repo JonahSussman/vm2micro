@@ -2975,6 +2975,9 @@ viking = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
     { name = "types-aiofiles" },
 ]
 
@@ -2994,7 +2997,12 @@ requires-dist = [
 provides-extras = ["viking", "dev"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "types-aiofiles", specifier = ">=25.1.0.20251011" }]
+dev = [
+    { name = "mypy", specifier = ">=1.0" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-asyncio", specifier = ">=0.23" },
+    { name = "types-aiofiles", specifier = ">=25.1.0.20251011" },
+]
 
 [[package]]
 name = "volcengine"
