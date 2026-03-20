@@ -2,7 +2,7 @@
 
 Requires:
   - python3-libguestfs system package
-  - A qcow2 image matching QCOW2_GLOB in the project root
+  - A qcow2 image in tests/data/ (run tests/build_test_images.py to create them)
 
 Skip automatically when either is unavailable.
 """
@@ -13,11 +13,10 @@ from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent
-QCOW2_GLOB = "*.qcow2"
+DATA_DIR = Path(__file__).parent / "data"
 
-# Find first qcow2 image in project root
-_images = sorted(PROJECT_ROOT.glob(QCOW2_GLOB))
+# Find first qcow2 image in tests/data/
+_images = sorted(DATA_DIR.glob("*.qcow2")) if DATA_DIR.exists() else []
 _image_path = str(_images[0]) if _images else None
 
 try:
