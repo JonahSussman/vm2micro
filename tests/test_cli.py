@@ -1,5 +1,4 @@
 # tests/test_cli.py
-import json
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -51,22 +50,3 @@ def test_init_does_not_overwrite(tmp_path: Path) -> None:
         assert Path("CLAUDE.md").read_text() == "custom content"
 
 
-def test_install_creates_mcp_entry(tmp_path: Path) -> None:
-    settings_path = tmp_path / ".claude" / "settings.json"
-    runner = CliRunner()
-    result = runner.invoke(main, ["install", "--settings-path", str(settings_path)])
-    assert result.exit_code == 0
-    settings = json.loads(settings_path.read_text())
-    assert "vm2micro" in settings.get("mcpServers", {})
-
-
-def test_install_merges_existing_settings(tmp_path: Path) -> None:
-    settings_path = tmp_path / ".claude" / "settings.json"
-    settings_path.parent.mkdir(parents=True)
-    settings_path.write_text(json.dumps({"mcpServers": {"other": {"command": "other-server"}}}))
-    runner = CliRunner()
-    result = runner.invoke(main, ["install", "--settings-path", str(settings_path)])
-    assert result.exit_code == 0
-    settings = json.loads(settings_path.read_text())
-    assert "vm2micro" in settings["mcpServers"]
-    assert "other" in settings["mcpServers"]

@@ -1,8 +1,7 @@
-"""CLI commands: vm2micro init and vm2micro install."""
+"""CLI command: vm2micro init."""
 
 from __future__ import annotations
 
-import json
 import shutil
 from importlib import resources
 from pathlib import Path
@@ -58,31 +57,8 @@ def init() -> None:
             else:
                 click.echo(f"  Skipped {dst} (already exists)")
 
-    click.echo("\nvm2micro initialized. Run 'claude' to start.")
+    click.echo("\nvm2micro initialized. Next, register the MCP server:\n")
+    click.echo("  claude mcp add --transport stdio --scope project vm2micro -- vm2micro-server\n")
+    click.echo("Then run 'claude' to start.")
 
 
-@main.command()
-@click.option(
-    "--settings-path",
-    default=None,
-    help="Path to Claude settings.json (default: ~/.claude/settings.json)",
-)
-def install(settings_path: str | None) -> None:
-    """Register the vm2micro MCP server in Claude Code settings."""
-    path = Path(settings_path) if settings_path else Path.home() / ".claude" / "settings.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    settings: dict[str, object] = {}
-    if path.exists():
-        settings = json.loads(path.read_text())
-
-    mcp_servers = settings.setdefault("mcpServers", {})
-    assert isinstance(mcp_servers, dict)
-    mcp_servers["vm2micro"] = {
-        "command": "vm2micro-server",
-        "args": [],
-        "env": {},
-    }
-
-    path.write_text(json.dumps(settings, indent=2) + "\n")
-    click.echo(f"vm2micro MCP server registered in {path}")

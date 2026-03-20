@@ -7,6 +7,14 @@ artifacts (Dockerfiles, Kubernetes/OpenShift manifests), and validates the resul
 
 Follow this workflow precisely. Do not skip steps or reorder agents.
 
+**CRITICAL: You are the orchestrator. You do NOT perform analysis, dependency mapping,
+decomposition, config generation, or validation yourself. You MUST dispatch each agent
+using the `@agent-name` syntax (e.g., `@vm-scanner`, `@dependency-analyzer`). Each agent
+is defined in `.claude/agents/` and will perform its own work using the MCP tools. Your
+job is to coordinate the workflow, manage checkpoints, and relay context between agents.
+Never call MCP tools directly except `connect`, `disconnect`, `viking_store_scan`, and
+`viking_commit_session`.**
+
 ---
 
 ## Available MCP Tools
@@ -71,7 +79,10 @@ Write a structured summary to `output/interview-summary.md` containing all answe
 
 Steps 1-4 correspond to the interview phase above.
 
-Steps 5-9 each run one **agent**. Every agent follows a two-phase pattern:
+Steps 5-9 each dispatch one **agent** using the `@agent-name` syntax. You MUST use this
+syntax to invoke each agent -- do NOT perform the agent's work yourself.
+
+Every agent follows a two-phase pattern:
 
 - **Phase 1 -- Plan**: Review all prior context, produce a written plan at
   `output/.scratchpad/{agent-name}/plan.md`, and create a task list.
@@ -79,15 +90,19 @@ Steps 5-9 each run one **agent**. Every agent follows a two-phase pattern:
 - **Phase 2 -- Execute**: Work through the task list. Pause and ask the user if you
   encounter ambiguity or a blocking issue. Present results when done.
 
-### Agent Sequence (strictly sequential)
+### Agent Dispatch Sequence (strictly sequential)
 
-| Step | Agent | Purpose |
+For each step below, dispatch the agent by typing `@agent-name` with a prompt that
+includes all relevant context from prior steps. Wait for the agent to complete before
+proceeding to the next step.
+
+| Step | Dispatch with | Purpose |
 |---|---|---|
-| 5 | **vm-scanner** | Service discovery -- connect to the VM, detect OS, scan services, fingerprint stacks, explore paths from interview. Store results with `viking_store_scan`. |
-| 6 | **dependency-analyzer** | Relationship mapping -- trace connections between discovered services, identify external dependencies, build a dependency graph. |
-| 7 | **decomposition-planner** | Microservice design -- propose container groupings based on service boundaries and dependencies, with rationale for each grouping decision. |
-| 8 | **config-generator** | Dockerfiles + manifests -- generate Dockerfiles, Kubernetes Deployments, Services, ConfigMaps, and OpenShift-specific resources for each container. |
-| 9 | **validator** | Final review & fixes -- validate every generated artifact (Dockerfile best practices, manifest schema, image references, port consistency), report PASS/WARN/FAIL. |
+| 5 | `@vm-scanner` | Service discovery -- connect to the VM, detect OS, scan services, fingerprint stacks, explore paths from interview. Store results with `viking_store_scan`. |
+| 6 | `@dependency-analyzer` | Relationship mapping -- trace connections between discovered services, identify external dependencies, build a dependency graph. |
+| 7 | `@decomposition-planner` | Microservice design -- propose container groupings based on service boundaries and dependencies, with rationale for each grouping decision. |
+| 8 | `@config-generator` | Dockerfiles + manifests -- generate Dockerfiles, Kubernetes Deployments, Services, ConfigMaps, and OpenShift-specific resources for each container. |
+| 9 | `@validator` | Final review & fixes -- validate every generated artifact (Dockerfile best practices, manifest schema, image references, port consistency), report PASS/WARN/FAIL. |
 
 **Step 10**: Final review and completion. Present the full results to the user.
 Call `viking_commit_session` to finalize the migration record.

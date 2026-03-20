@@ -39,25 +39,32 @@ output/deploy/  (Dockerfiles, Deployments, Services, Routes, ConfigMaps)
 ### Install
 
 ```bash
-# Install vm2micro
-uv tool install vm2micro
+# Install from GitHub
+uv tool install git+https://github.com/JonahSussman/vm2micro.git
 
 # Or from source
 git clone https://github.com/JonahSussman/vm2micro.git
 cd vm2micro
 uv tool install .
+
+# Update to latest
+uv tool upgrade vm2micro
+
+# Uninstall
+uv tool uninstall vm2micro
 ```
 
 ### Set up a migration project
 
 ```bash
 mkdir my-migration && cd my-migration
+git init
 
 # Scaffold agents, workflow, and hints file
 vm2micro init
 
-# Register MCP server with Claude Code
-vm2micro install
+# Register MCP server with Claude Code (writes .mcp.json in project dir)
+claude mcp add --transport stdio --scope project vm2micro -- vm2micro-server
 ```
 
 This creates:
@@ -139,6 +146,29 @@ external_dependencies:
 exclude_from_containerization:
   - "monitoring-agent"
 target_openshift_version: "4.14"
+```
+
+## Running without installing
+
+If you don't want to install vm2micro as a tool, you can run everything directly from the repo:
+
+```bash
+git clone https://github.com/JonahSussman/vm2micro.git
+cd vm2micro
+
+# Create a migration project
+mkdir /tmp/my-migration && cd /tmp/my-migration
+git init
+
+# Scaffold using uv run --project
+uv run --project /path/to/vm2micro vm2micro init
+
+# Register MCP server pointing at the repo
+claude mcp add --transport stdio --scope project vm2micro -- \
+  uv run --project /path/to/vm2micro vm2micro-server
+
+# Start Claude Code
+claude
 ```
 
 ## Development
